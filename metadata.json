@@ -1,0 +1,8 @@
+{
+  "name": "智家全屋智能方案定制与商户工作台",
+  "description": "智能家居方案定制、BOM清单算量、客户管理与经销商设计师入驻平台",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
