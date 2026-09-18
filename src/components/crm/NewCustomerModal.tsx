@@ -222,7 +222,7 @@ export const NewCustomerModal: React.FC<NewCustomerModalProps> = ({
                 >
                   <option value="普通客户">普通客户</option>
                   <option value="重要客户">重要客户</option>
-                  <option value="VIP客户">VIP客户</option>
+                  <option value="优质客户">优质客户</option>
                   <option value="战略客户">战略客户</option>
                 </select>
               </div>

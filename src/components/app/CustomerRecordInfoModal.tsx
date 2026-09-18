@@ -213,7 +213,7 @@ export const CustomerRecordInfoModal: React.FC<CustomerRecordInfoModalProps> = (
           region: '北京-朝阳',
           detailAddress: `${trimmedCommunity} 现场登记`,
           source: '方案记录登记',
-          level: 'VIP客户',
+          level: '优质客户',
           category: '家装客户',
           remark: trimmedNotes,
           customNotes: trimmedNotes,

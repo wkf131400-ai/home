@@ -978,7 +978,7 @@ export const AdminQuickQuoteWizard: React.FC<AdminQuickQuoteWizardProps> = ({
                     <option value={0.95}>95折 (优惠 5%)</option>
                     <option value={0.9}>90折 (优惠 10%)</option>
                     <option value={0.85}>85折 (优惠 15%)</option>
-                    <option value={0.8}>80折 (VIP 8折)</option>
+                    <option value={0.8}>80折 (特惠 8折)</option>
                   </select>
                 </div>
 

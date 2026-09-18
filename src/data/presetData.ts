@@ -155,7 +155,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
     subtitle: '智能化展厅、沙盘灯光与中控大屏联动演示',
     categoryTag: 'commercial',
     categoryLabel: '商业 / 办公',
-    roomNames: ['科技展厅入口', '主展示区', 'VIP洽谈室', '控制中心/机房', '演示沙盘区', '茶水间', '行政洗手间'],
+    roomNames: ['科技展厅入口', '主展示区', '商务洽谈室', '控制中心/机房', '演示沙盘区', '茶水间', '行政洗手间'],
     suggestedMinBudget: 10,
     suggestedMaxBudget: 30,
   },

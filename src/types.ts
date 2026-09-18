@@ -221,6 +221,20 @@ export interface UserProfile {
   consultantPhone?: string;
 }
 
+export interface PlanChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'salesperson';
+  senderName?: string;
+  avatar?: string;
+  content: string;
+  timestamp: string;
+  schemeSummary?: {
+    totalCostTenThousand?: number;
+    deviceCount?: number;
+    highlights?: string[];
+  };
+}
+
 // Saved Renovation Plan Record
 export interface SavedPlanRecord {
   id: string;
@@ -248,6 +262,9 @@ export interface SavedPlanRecord {
   contactedBusinessAt?: string;
   logisticsInfo?: ShippingLogisticsInfo;
   isCustomTemplate?: boolean;
+  chatHistory?: PlanChatMessage[]; // 客户沟通与AI对话记录
+  consultantName?: string;
+  consultantPhone?: string;
 }
 
 // Curated Plan Template
@@ -272,12 +289,18 @@ export interface PlanTemplate {
   isUserCustom?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  authorName?: string;
+  authorPhone?: string;
+  communityName?: string;
+  customerId?: string;
+  status?: 'published' | 'draft' | 'archived';
+  usageCount?: number;
 }
 
 export type CustomerStatus = '资源客户' | '意向客户' | '签约客户' | '丢单客户';
 export type DeliveryStatus = '未交付' | '施工中' | '已交付';
 export type PriceGrade = '普通级别' | '高端级别' | '尊享级别' | '暂无';
-export type CustomerLevel = '普通客户' | '重要客户' | 'VIP客户' | '战略客户';
+export type CustomerLevel = '普通客户' | '重要客户' | '优质客户' | '战略客户';
 export type CustomerType = '家装客户' | '工装客户' | '别墅项目' | '大平层' | '展示厅';
 
 export interface FollowUpRecord {

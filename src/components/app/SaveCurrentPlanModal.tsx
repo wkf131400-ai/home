@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { RenovationProject, SavedPlanRecord } from '../../types';
+import { generateDefaultChatHistory } from '../../data/planChatHistoryData';
 
 interface SaveCurrentPlanModalProps {
   isOpen: boolean;
@@ -69,6 +70,8 @@ export const SaveCurrentPlanModal: React.FC<SaveCurrentPlanModalProps> = ({
       orderStatusLabel: '1. 联系商务 (待提交)',
       project: JSON.parse(JSON.stringify(project)),
     };
+
+    newRecord.chatHistory = generateDefaultChatHistory(newRecord);
 
     onSavePlan(newRecord);
     onClose();

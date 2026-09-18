@@ -40,6 +40,7 @@ import {
   GraduationCap,
   Sparkles,
   Share2,
+  FileStack,
 } from 'lucide-react';
 import {
   LayoutPreset,
@@ -50,6 +51,8 @@ import {
   Customer,
   FollowUpRecord,
   CustomerStatus,
+  SavedPlanRecord,
+  PlanTemplate,
 } from '../types';
 import { AdminStorageManager } from '../utils/adminStorage';
 import { CustomerPool } from './crm/CustomerPool';
@@ -59,6 +62,8 @@ import { AdminQuickQuoteWizard } from './admin/AdminQuickQuoteWizard';
 import { ManualProductQuotation } from './admin/ManualProductQuotation';
 import { FloorPlanPointDesigner } from './admin/FloorPlanPointDesigner';
 import { CustomerAuditCenter } from './crm/CustomerAuditCenter';
+import { AdminCustomerTemplates } from './admin/AdminCustomerTemplates';
+import { AdminCustomerPlanRecords } from './admin/AdminCustomerPlanRecords';
 
 interface AdminPortalProps {
   onSwitchToApp: () => void;
@@ -74,6 +79,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onSwitchToApp }) => {
     | 'quickQuote'
     | 'manualQuote'
     | 'pointConfig'
+    | 'allPlanRecords'
+    | 'allTemplates'
     | 'layoutPresets'
     | 'roomSmartSchemes'
     | 'equipmentCatalog'
@@ -87,6 +94,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onSwitchToApp }) => {
   const [customers, setCustomers] = useState<Customer[]>(() => AdminStorageManager.getCustomers());
   const [followUps, setFollowUps] = useState<FollowUpRecord[]>(() => AdminStorageManager.getFollowUps());
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => customers[0] || null);
+
+  // Plan Records & Templates State loaded from Storage Manager
+  const [savedPlans, setSavedPlans] = useState<SavedPlanRecord[]>(() => AdminStorageManager.getSavedPlans());
+  const [planTemplates, setPlanTemplates] = useState<PlanTemplate[]>(() => AdminStorageManager.getPlanTemplates());
 
   // Scheme Engineering State loaded from Storage Manager
   const [layoutPresets, setLayoutPresets] = useState<LayoutPreset[]>(() => AdminStorageManager.getLayoutPresets());
@@ -239,6 +250,70 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onSwitchToApp }) => {
     setCustomers(updated);
     AdminStorageManager.saveCustomers(updated);
     showToast('客户共享状态已切换');
+  };
+
+  // Plan Records Handlers
+  const handleUpdatePlanRecord = (updatedPlan: SavedPlanRecord) => {
+    const updated = savedPlans.map((p) => (p.id === updatedPlan.id ? updatedPlan : p));
+    setSavedPlans(updated);
+    AdminStorageManager.saveSavedPlans(updated);
+    showToast(`方案【${updatedPlan.title}】已成功更新`);
+  };
+
+  const handleDeletePlanRecord = (planId: string) => {
+    const updated = savedPlans.filter((p) => p.id !== planId);
+    setSavedPlans(updated);
+    AdminStorageManager.saveSavedPlans(updated);
+    showToast('方案记录已删除');
+  };
+
+  const handleConvertPlanToTemplate = (plan: SavedPlanRecord) => {
+    const newTmpl: PlanTemplate = {
+      id: `tmpl_conv_${Date.now()}`,
+      title: `${plan.title} (沉淀模板)`,
+      subtitle: `${plan.customerName}业主定制沉淀方案`,
+      category: 'quality',
+      categoryLabel: '品质精选',
+      priceGrade: '品质精选',
+      estimatedCostTenThousand: plan.totalCostTenThousand || 6.8,
+      defaultMinBudget: plan.project?.minBudget || 5,
+      defaultMaxBudget: plan.project?.maxBudget || 12,
+      recommendedLayout: plan.presetTitle || '三居室标准户型',
+      description: plan.customerNotes || '由客户真实方案直接转化沉淀，已包含完整空间、设备及调光场景。',
+      features: plan.tags || ['全宅调光', '智能窗帘', '客户专属推荐'],
+      highlights: ['原厂智能硬件配置', '经过客户实际选型认可', '极速复用与二次报价'],
+      roomsCount: plan.roomsCount || plan.project?.rooms?.length || 5,
+      deviceCount: plan.deviceCount || 24,
+      rooms: plan.project?.rooms || [],
+      isUserCustom: true,
+      authorName: `${plan.customerName || '客户'} (专属定制)`,
+      authorPhone: plan.customerPhone || '',
+      status: 'published',
+      usageCount: 1,
+      createdAt: `${new Date().toISOString().slice(0, 10)} 10:00`,
+      updatedAt: `${new Date().toISOString().slice(0, 10)} ${new Date().toTimeString().slice(0, 5)}`,
+    };
+
+    const updatedTemplates = [newTmpl, ...planTemplates];
+    setPlanTemplates(updatedTemplates);
+    AdminStorageManager.savePlanTemplates(updatedTemplates);
+    showToast(`方案【${plan.title}】已成功沉淀为客户方案模板！`);
+  };
+
+  // Plan Templates Handlers
+  const handleSavePlanTemplate = (template: PlanTemplate) => {
+    const exists = planTemplates.some((t) => t.id === template.id);
+    const updated = exists ? planTemplates.map((t) => (t.id === template.id ? template : t)) : [template, ...planTemplates];
+    setPlanTemplates(updated);
+    AdminStorageManager.savePlanTemplates(updated);
+    showToast(`方案模板【${template.title}】已保存`);
+  };
+
+  const handleDeletePlanTemplate = (templateId: string) => {
+    const updated = planTemplates.filter((t) => t.id !== templateId);
+    setPlanTemplates(updated);
+    AdminStorageManager.savePlanTemplates(updated);
+    showToast('方案模板已删除');
   };
 
   const categoryNamesMap: Record<RoomItem['category'] | 'weak_box', string> = {
@@ -490,11 +565,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onSwitchToApp }) => {
 
         {/* Action Tools & Status */}
         <div className="flex items-center space-x-3 text-xs">
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-lg text-[11px]">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>试用会员剩余 3 天</span>
-          </div>
-
           <div className="flex items-center space-x-2 text-slate-300 px-2 py-1 bg-slate-800/80 rounded-lg border border-slate-700 text-[11px]">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-bold text-white">卫科帆 (老板/管理员)</span>
@@ -670,6 +740,45 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onSwitchToApp }) => {
                     </span>
                   </button>
 
+                  {/* 4. 所有客户方案记录 (方案记录要能看到客户的对话记录) */}
+                  <button
+                    onClick={() => setActiveTab('allPlanRecords')}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                      activeTab === 'allPlanRecords'
+                        ? 'bg-blue-50 text-blue-700 font-bold border-l-2 border-blue-600'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      <span>所有客户方案记录</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-blue-100 text-blue-800">
+                        对话
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        {savedPlans.length}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* 5. 所有客户的模板管理 */}
+                  <button
+                    onClick={() => setActiveTab('allTemplates')}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                      activeTab === 'allTemplates'
+                        ? 'bg-blue-50 text-blue-700 font-bold border-l-2 border-blue-600'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      <span>所有客户模板管理</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      {planTemplates.length}
+                    </span>
+                  </button>
+
                   {/* 户型空间模板配置 */}
                   <button
                     onClick={() => setActiveTab('layoutPresets')}
@@ -774,6 +883,36 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onSwitchToApp }) => {
           {activeTab === 'pointConfig' && (
             <FloorPlanPointDesigner
               onExit={() => setActiveTab('customerPool')}
+            />
+          )}
+
+          {/* TAB: 所有客户方案记录 (方案记录要能看到客户的对话记录) */}
+          {activeTab === 'allPlanRecords' && (
+            <AdminCustomerPlanRecords
+              plans={savedPlans}
+              customers={customers}
+              onUpdatePlan={handleUpdatePlanRecord}
+              onDeletePlan={handleDeletePlanRecord}
+              onConvertToTemplate={handleConvertPlanToTemplate}
+              onNavigateToCustomer={(custName) => {
+                const found = customers.find((c) => c.name === custName);
+                if (found) {
+                  setSelectedCustomer(found);
+                  setActiveTab('customerDetail');
+                } else {
+                  setActiveTab('customerPool');
+                }
+              }}
+            />
+          )}
+
+          {/* TAB: 所有客户的模板管理 */}
+          {activeTab === 'allTemplates' && (
+            <AdminCustomerTemplates
+              templates={planTemplates}
+              customers={customers}
+              onSaveTemplate={handleSavePlanTemplate}
+              onDeleteTemplate={handleDeletePlanTemplate}
             />
           )}
 

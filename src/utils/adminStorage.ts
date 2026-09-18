@@ -13,9 +13,11 @@ import {
   PlanTemplate,
   CustomQuotationRecord,
   FloorPlanDesignProject,
+  PlanChatMessage,
 } from '../types';
 import { LAYOUT_PRESETS, DEFAULT_ROOM_TEMPLATES, DEVICE_SERIES_LIST } from '../data/presetData';
 import { INITIAL_PLAN_TEMPLATES } from '../data/planTemplatesData';
+import { SAMPLE_CHAT_HISTORIES, generateDefaultChatHistory } from '../data/planChatHistoryData';
 import { createDefaultRoom } from './calculator';
 
 const STORAGE_KEYS = {
@@ -65,7 +67,7 @@ export const INITIAL_SAVED_PLANS: SavedPlanRecord[] = [
     notes: '客厅主卧磁吸轨道灯深度调光，中央空调多联机集中控制，双卫生间微波雷达感应。',
     status: '已确认方案',
     orderStatus: 'shipping',
-    orderStatusLabel: '已发货 (顺丰单号: SF138982847294)',
+    orderStatusLabel: '已发货',
     contactedBusinessAt: '2026-08-19 15:30',
     logisticsInfo: {
       orderNumber: 'ORD20260819001',
@@ -135,6 +137,7 @@ export const INITIAL_SAVED_PLANS: SavedPlanRecord[] = [
         { ...createDefaultRoom('卫生间', 'bathroom'), id: 'r_rec_7' },
       ],
     },
+    chatHistory: SAMPLE_CHAT_HISTORIES['plan_rec_001'],
   },
   {
     id: 'plan_rec_002',
@@ -223,6 +226,7 @@ export const INITIAL_SAVED_PLANS: SavedPlanRecord[] = [
         { ...createDefaultRoom('厨房', 'kitchen'), id: 'r_rec_p2_4' },
       ],
     },
+    chatHistory: SAMPLE_CHAT_HISTORIES['plan_rec_002'],
   },
   {
     id: 'plan_rec_003',
@@ -245,6 +249,7 @@ export const INITIAL_SAVED_PLANS: SavedPlanRecord[] = [
     status: '草稿',
     orderStatus: 'contact_sales',
     orderStatusLabel: '1. 联系商务 (待提交)',
+    chatHistory: SAMPLE_CHAT_HISTORIES['plan_rec_003'],
     project: {
       communityName: '中海首开拾光里',
       cityName: '北京',
@@ -285,6 +290,7 @@ export const INITIAL_SAVED_PLANS: SavedPlanRecord[] = [
     orderStatus: 'delivered',
     orderStatusLabel: '4. 已签收 (交付完成)',
     contactedBusinessAt: '2026-08-11 10:00',
+    chatHistory: SAMPLE_CHAT_HISTORIES['plan_rec_004'],
     logisticsInfo: {
       orderNumber: 'ORD20260811004',
       carrier: '顺丰速运 (SF-Express)',
@@ -439,7 +445,7 @@ export const INITIAL_CUSTOMERS: Customer[] = [
     region: '北京-朝阳',
     detailAddress: '中海首开拾光里6栋',
     source: '经销商自助入驻申请',
-    level: 'VIP客户',
+    level: '优质客户',
     category: '工装客户',
     auditStatus: 'pending',
     customNotes: '申请身份：经销商 | 门店/公司：北京极智物联科技有限公司 | 城市：北京-朝阳',
@@ -516,7 +522,7 @@ export const INITIAL_CUSTOMERS: Customer[] = [
     region: '浙江-杭州-滨江',
     detailAddress: '紫金府2期5栋302',
     source: '广告投放',
-    level: 'VIP客户',
+    level: '优质客户',
     category: '别墅项目',
     designer: '陈总监',
     firstContactDate: '2026-08-15',
@@ -1259,30 +1265,127 @@ export class AdminStorageManager {
   static getSavedPlans(): SavedPlanRecord[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SAVED_PLANS);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed: SavedPlanRecord[] = JSON.parse(data);
+        return parsed.map((p) => {
+          const sanitizedPhone = p.customerPhone && p.customerPhone.trim() ? p.customerPhone : '17696180841';
+          const sanitizedStatusLabel = p.orderStatus === 'shipping' ? '已发货' : (p.orderStatusLabel?.replace(/\(顺丰单号:[^)]*\)/g, '').trim() || p.status);
+          let chat = p.chatHistory;
+          if (!chat || chat.length === 0) {
+            const sample = SAMPLE_CHAT_HISTORIES[p.id];
+            chat = sample ? sample : generateDefaultChatHistory(p);
+          }
+          return {
+            ...p,
+            customerPhone: sanitizedPhone,
+            orderStatusLabel: sanitizedStatusLabel,
+            chatHistory: chat,
+          };
+        });
+      }
     } catch (e) {
       console.error('Failed to parse saved plans', e);
     }
-    return INITIAL_SAVED_PLANS;
+    return INITIAL_SAVED_PLANS.map((p) => ({
+      ...p,
+      customerPhone: p.customerPhone && p.customerPhone.trim() ? p.customerPhone : '17696180841',
+      orderStatusLabel: p.orderStatus === 'shipping' ? '已发货' : (p.orderStatusLabel?.replace(/\(顺丰单号:[^)]*\)/g, '').trim() || p.status),
+    }));
   }
 
   static saveSavedPlans(plans: SavedPlanRecord[]): void {
     localStorage.setItem(STORAGE_KEYS.SAVED_PLANS, JSON.stringify(plans));
   }
 
+  static saveSingleSavedPlan(plan: SavedPlanRecord): void {
+    const plans = this.getSavedPlans();
+    const exists = plans.some((p) => p.id === plan.id);
+    const updated = exists ? plans.map((p) => (p.id === plan.id ? plan : p)) : [plan, ...plans];
+    this.saveSavedPlans(updated);
+  }
+
+  static deleteSavedPlan(planId: string): void {
+    const plans = this.getSavedPlans();
+    const updated = plans.filter((p) => p.id !== planId);
+    this.saveSavedPlans(updated);
+  }
+
+  static appendPlanChatMessage(planId: string, message: PlanChatMessage): void {
+    const plans = this.getSavedPlans();
+    const updated = plans.map((p) => {
+      if (p.id === planId) {
+        const history = p.chatHistory || [];
+        return {
+          ...p,
+          chatHistory: [...history, message],
+          updatedAt: `${new Date().toISOString().slice(0, 10)} ${new Date().toTimeString().slice(0, 5)}`,
+        };
+      }
+      return p;
+    });
+    this.saveSavedPlans(updated);
+  }
+
   // App Plan Templates (方案模板)
   static getPlanTemplates(): PlanTemplate[] {
+    const customerSeedMeta = [
+      { authorName: '卫科帆', authorPhone: '17696180841', communityName: '万科翡翠公园' },
+      { authorName: '张建国', authorPhone: '13812345678', communityName: '保利天汇' },
+      { authorName: '李明华', authorPhone: '13911223344', communityName: '华润幸福里' },
+      { authorName: '王芳', authorPhone: '13700112233', communityName: '中海甲叁號院' },
+      { authorName: '赵文博', authorPhone: '13688990011', communityName: '龙湖天境' },
+      { authorName: '刘静', authorPhone: '13566778899', communityName: '汤臣一品' },
+    ];
+
     try {
       const data = localStorage.getItem(STORAGE_KEYS.PLAN_TEMPLATES);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed: PlanTemplate[] = JSON.parse(data);
+        return parsed.map((t, idx) => {
+          const meta = customerSeedMeta[idx % customerSeedMeta.length];
+          return {
+            ...t,
+            isUserCustom: true,
+            authorName: t.authorName && !t.authorName.includes('VIP') && !t.authorName.includes('官方') ? t.authorName : meta.authorName,
+            authorPhone: t.authorPhone && t.authorPhone !== '400-800-8899' ? t.authorPhone : meta.authorPhone,
+            communityName: t.communityName || meta.communityName,
+            status: t.status || 'published',
+            usageCount: t.usageCount ?? (18 - idx * 2),
+          };
+        });
+      }
     } catch (e) {
       console.error('Failed to parse plan templates', e);
     }
-    return INITIAL_PLAN_TEMPLATES;
+    return INITIAL_PLAN_TEMPLATES.map((t, idx) => {
+      const meta = customerSeedMeta[idx % customerSeedMeta.length];
+      return {
+        ...t,
+        isUserCustom: true,
+        authorName: meta.authorName,
+        authorPhone: meta.authorPhone,
+        communityName: meta.communityName,
+        status: t.status || 'published',
+        usageCount: t.usageCount ?? (24 - idx * 3),
+      };
+    });
   }
 
   static savePlanTemplates(templates: PlanTemplate[]): void {
     localStorage.setItem(STORAGE_KEYS.PLAN_TEMPLATES, JSON.stringify(templates));
+  }
+
+  static saveSinglePlanTemplate(template: PlanTemplate): void {
+    const templates = this.getPlanTemplates();
+    const exists = templates.some((t) => t.id === template.id);
+    const updated = exists ? templates.map((t) => (t.id === template.id ? template : t)) : [template, ...templates];
+    this.savePlanTemplates(updated);
+  }
+
+  static deletePlanTemplate(templateId: string): void {
+    const templates = this.getPlanTemplates();
+    const updated = templates.filter((t) => t.id !== templateId);
+    this.savePlanTemplates(updated);
   }
 
   // Custom Product Quotations (完全手输与选配产品报价 - 图一)
